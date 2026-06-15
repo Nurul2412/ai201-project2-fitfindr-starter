@@ -43,8 +43,68 @@ def handle_query(user_query: str, wardrobe_choice: str) -> tuple[str, str, str]:
            string and return it along with session["outfit_suggestion"] and
            session["fit_card"].
     """
-    # TODO: implement this function
-    return "Agent not yet implemented.", "", ""
+    # 1. Guard against an empty / whitespace-only query.
+    if not user_query or not user_query.strip():
+        return ("Please enter a clothing search query.", "", "")
+
+    # 2. Select the wardrobe based on the radio choice.
+    if wardrobe_choice == "Empty wardrobe (new user)":
+        selected_wardrobe = get_empty_wardrobe()
+    else:
+        selected_wardrobe = get_example_wardrobe()
+
+    # 3. Run the agent planning loop.
+    session = run_agent(user_query, selected_wardrobe)
+
+    # 4. Error path — surface the message in the first panel only.
+    if session.get("error"):
+        return (session["error"], "", "")
+
+    # 5. Format the selected listing into a readable text block.
+    item = session["selected_item"]
+
+    lines = []
+    title = item.get("title")
+    if title:
+        lines.append(title)
+
+    price = item.get("price")
+    if price is not None:
+        lines.append(f"Price: ${price:.2f}")
+
+    size = item.get("size")
+    if size:
+        lines.append(f"Size: {size}")
+
+    condition = item.get("condition")
+    if condition:
+        lines.append(f"Condition: {condition}")
+
+    brand = item.get("brand")
+    if brand:
+        lines.append(f"Brand: {brand}")
+
+    platform = item.get("platform")
+    if platform:
+        lines.append(f"Platform: {platform}")
+
+    colors = item.get("colors")
+    if colors:
+        lines.append(f"Colors: {', '.join(colors)}")
+
+    style_tags = item.get("style_tags")
+    if style_tags:
+        lines.append(f"Style tags: {', '.join(style_tags)}")
+
+    # Append the Tool 4 price check to the listing panel, if one was produced.
+    price_comparison = session.get("price_comparison")
+    if price_comparison:
+        lines.append("")
+        lines.append(price_comparison)
+
+    listing_text = "\n".join(lines)
+
+    return (listing_text, session["outfit_suggestion"], session["fit_card"])
 
 
 # ── interface ─────────────────────────────────────────────────────────────────
@@ -83,8 +143,8 @@ Describe what you're looking for — include size and price if you want to filte
 
         with gr.Row():
             listing_output = gr.Textbox(
-                label="🛍️ Top listing found",
-                lines=8,
+                label="🛍️ Top listing found + price check",
+                lines=14,
                 interactive=False,
             )
             outfit_output = gr.Textbox(
